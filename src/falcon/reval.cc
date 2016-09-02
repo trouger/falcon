@@ -1215,7 +1215,8 @@ struct LoadAttr: public RegOpImpl<RegOp<2>, LoadAttr> {
   static f_inline void _eval(Evaluator *eval, RegisterFrame* frame, RegOp<2>& op, Register* registers) {
     PyObject* obj = LOAD_OBJ(op.reg[0]);
     PyObject* name = PyTuple_GET_ITEM(frame->names(), op.arg);
-    PyObject* res = obj_getattr(eval, op, obj, name);
+    //PyObject* res = obj_getattr(eval, op, obj, name);
+	PyObject* res = PyObject_GetAttr(obj, name);
     STORE_REG(op.reg[1], res);
   }
 };
