@@ -128,6 +128,10 @@ struct Coerce {
     return StringPrintf("%ld", v);
   }
 
+  static std::string str(const unsigned long& v) {
+    return StringPrintf("%ld", v);
+  }
+
 #ifdef MS_WIN64
   static std::string str(const __int64& v) {
 	  return StringPrintf("%lld", v);
