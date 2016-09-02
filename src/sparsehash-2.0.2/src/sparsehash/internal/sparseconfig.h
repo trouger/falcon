@@ -7,7 +7,11 @@
 #define GOOGLE_NAMESPACE ::google
 
 /* the location of the header defining hash functions */
+#ifndef _MSC_VER
 #define HASH_FUN_H <tr1/functional>
+#else
+#define HASH_FUN_H <functional>
+#endif
 
 /* the namespace of the hash<> function */
 #define HASH_NAMESPACE std::tr1

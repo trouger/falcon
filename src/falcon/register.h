@@ -144,7 +144,7 @@ struct Register {
     return true;
   }
 
-  f_inline PyObject* as_obj() {
+  f_inline PyObject*& as_obj() {
     return v;
   }
 

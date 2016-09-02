@@ -10,6 +10,10 @@
 #include <string>
 #include <vector>
 
+#ifdef _MSC_VER
+#include <Windows.h>
+#endif
+
 #define breakpoint()\
   struct sigaction oldAct;\
   struct sigaction newAct;\
@@ -18,11 +22,17 @@
   raise(SIGTRAP);\
   sigaction(SIGTRAP, &oldAct, NULL);
 
+#ifndef _MSC_VER
 static inline uint64_t rdtsc() {
   uint32_t hi, lo;
   __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
   return (((uint64_t) hi) << 32) | ((uint64_t) lo);
 }
+#else
+static inline uint64_t rdtsc() {
+	return 0;
+}
+#endif
 
 double Now();
 std::string Hostname();

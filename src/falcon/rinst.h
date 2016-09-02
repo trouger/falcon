@@ -11,6 +11,8 @@
 
 #include <string>
 
+#pragma warning(disable: 4200)
+
 static const inline char* obj_to_str(PyObject* o) {
   if (o == NULL) {
     return "<NULL>";
@@ -119,7 +121,7 @@ struct RegisterCode {
 };
 
 #if PACK_INSTRUCTIONS
-#pragma pack(push, 0)
+#pragma pack(push, 1)
 #endif
 
 struct OpHeader {

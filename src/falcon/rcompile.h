@@ -75,7 +75,7 @@ RegisterCode* Compiler::compile(PyObject* func) {
   RegisterCode* register_code = NULL;
   try {
      register_code = compile_(func);
-  } catch (const RException& e) {
+  } catch (RException) {
     Log_Info("Failed to compile function %s", fn_name(func));
   }
   cache_[stack_code] = register_code;

@@ -52,13 +52,13 @@ std::string BranchOp<num_registers>::str(Register* registers) const {
   return w.str();
 }
 
-template class RegOp<0> ;
-template class RegOp<1> ;
-template class RegOp<2> ;
-template class RegOp<3> ;
-template class RegOp<4> ;
+template struct RegOp<0> ;
+template struct RegOp<1> ;
+template struct RegOp<2> ;
+template struct RegOp<3> ;
+template struct RegOp<4> ;
 
 
-template class BranchOp<0> ;
-template class BranchOp<1> ;
-template class BranchOp<2> ;
+template struct BranchOp<0> ;
+template struct BranchOp<1> ;
+template struct BranchOp<2> ;

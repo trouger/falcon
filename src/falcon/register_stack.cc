@@ -37,6 +37,7 @@ Frame RegisterStack::pop_exc_handler() {
   }
 
   Reg_Assert(false, "Popped too many frames.");
+  return Frame();
 }
 
 int RegisterStack::push_register(int reg) {

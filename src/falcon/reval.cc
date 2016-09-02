@@ -227,14 +227,14 @@ RegisterFrame::~RegisterFrame() {
 }
 
 Evaluator::Evaluator() {
-  bzero(op_counts_, sizeof(op_counts_));
-  bzero(op_times_, sizeof(op_times_));
+  memset(op_counts_, 0, sizeof(op_counts_));
+  memset(op_times_, 0, sizeof(op_times_));
   total_count_ = 0;
   last_clock_ = 0;
   hint_hits_ = 0;
   hint_misses_ = 0;
   compiler = new Compiler;
-  bzero(hints, sizeof(Hint) * kMaxHints);
+  memset(hints, 0, sizeof(Hint) * kMaxHints);
 
   // We use a sentinel value for the invalid hint index.
   hints[kInvalidHint].guard.obj = NULL;
@@ -288,7 +288,7 @@ PyObject* Evaluator::eval_frame_to_pyobj(RegisterFrame* frame) {
     delete frame;
     return result_obj;
 
-  } catch (RException& r) {
+  } catch (RException) {
     delete frame;
     return NULL;
   }
@@ -1069,7 +1069,8 @@ struct StoreSlice: public RegOpImpl<RegOp<4>, StoreSlice> {
 struct ConstIndex: public RegOpImpl<RegOp<2>, ConstIndex> {
   static f_inline void _eval(Evaluator *eval, RegisterFrame* frame, RegOp<2>& op, Register* registers) {
     PyObject* list = LOAD_OBJ(op.reg[0]);
-    uint8_t key = op.arg;
+	assert(op.arg <= UINT8_MAX);
+    uint8_t key = (uint8_t)op.arg;
     if (op.reg[1] == kInvalidRegister) {
       return;
     }
@@ -1110,7 +1111,12 @@ static size_t dict_getoffset(PyDictObject* dict, PyObject* key) {
     hash = PyObject_Hash(key);
   }
 
+#ifndef Py_COMPACT_DICT
   PyDictEntry* pos = dict->ma_lookup(dict, key, hash);
+#else
+  PyDictEntry* pos = dict->ma_lookup(dict, key, hash, 0);
+  assert(pos && pos->me_value);
+#endif
   return pos - dict->ma_table;
 }
 
@@ -1164,7 +1170,7 @@ static PyObject * obj_getattr(Evaluator* eval, RegOp<2>& op, PyObject *obj, PyOb
     // We found a match.  Create a hint for where to look next time.
     if (res != NULL) {
 #if GETATTR_HINTS
-      size_t hint_pos = hint_offset(type, name);
+      HintOffset hint_pos = (HintOffset)hint_offset(type, name);
       size_t dict_pos = dict_getoffset(dict, name);
 
       Hint h;
@@ -1845,8 +1851,13 @@ struct RaiseVarArgs: public RegOpImpl<RegOp<3>, RaiseVarArgs> {
 
 Register Evaluator::eval(RegisterFrame* f) {
   register RegisterFrame* frame = f;
+#ifndef _MSC_VER
   register Register* registers asm("r15") = frame->registers;
   register const char* pc asm("r14") = frame->instructions();
+#else
+  register Register* registers = frame->registers;
+  register const char* pc = frame->instructions();
+#endif
 
   Reg_Assert(frame != NULL, "NULL frame object.");
   Register* result;

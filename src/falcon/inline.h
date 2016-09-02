@@ -13,6 +13,11 @@
 #define f_inline __attribute__((noinline))
 #define n_inline __attribute__((noinline))
 
+#elif defined(_MSC_VER)
+
+#define f_inline __forceinline
+#define n_inline
+
 #else
 
 //#define f_inline inline

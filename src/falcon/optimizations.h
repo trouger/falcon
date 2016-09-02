@@ -419,8 +419,11 @@ public:
   }
 };
 
-
-
+#ifdef _MSC_VER
+#define INT		ST_INT
+#define FLOAT	ST_FLOAT
+#define BOOL	ST_BOOL
+#endif
 enum StaticType {
   INT,
   FLOAT,

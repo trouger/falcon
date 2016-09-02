@@ -1,5 +1,9 @@
 #include "rlist.h"
 
+#ifdef _MSC_VER
+#define __PRETTY_FUNCTION__ __FUNCSIG__
+#endif
+
 // A re-implementation of the Python list object, using registers.
 // As you might expect, this shares a lot of similarities with
 // listobject.c; unforunately I haven't thought of a great way

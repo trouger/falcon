@@ -6,6 +6,10 @@
 
 #include <set>
 
+#ifdef _MSC_VER
+#undef INCREF
+#undef DECREF
+#endif
 #define INCREF 148
 #define DECREF 149
 #define CONST_INDEX 150

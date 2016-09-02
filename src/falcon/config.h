@@ -30,7 +30,11 @@
 #endif
 
 #ifndef USE_THREADED_DISPATCH
+#ifndef _MSC_VER
 #define USE_THREADED_DISPATCH 1
+#else
+#define USE_THREADED_DISPATCH 0
+#endif
 #endif
 
 #ifndef MAX_REGISTERS

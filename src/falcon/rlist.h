@@ -29,7 +29,7 @@ typedef struct {
 
 } RListObject;
 
-PyAPI_DATA(PyTypeObject) RList_Type;
+extern PyTypeObject RList_Type;
 
 #define RList_CheckExact(op) (Py_TYPE(op) == &RList_Type)
 

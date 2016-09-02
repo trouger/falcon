@@ -69,7 +69,8 @@ struct RCompilerUtil {
 
     if (OpUtil::is_varargs(src->code)) {
       VarRegOp* op = (VarRegOp*) dst;
-      op->num_registers = src->regs.size();
+	  assert(src->regs.size() <= UINT8_MAX);
+      op->num_registers = (uint8_t)src->regs.size();
       for (size_t i = 0; i < src->regs.size(); ++i) {
         op->reg[i] = src->regs[i];
 
@@ -94,7 +95,7 @@ struct RCompilerUtil {
         op->label = 0;
       }
     } else {
-      Reg_AssertLe(src->regs.size(), 4ul);
+      Reg_AssertLe(src->regs.size(), 4u);
       RegOp<0>* op = (RegOp<0>*) dst;
       for (size_t i = 0; i < src->regs.size(); ++i) {
 //        op->reg.set(i, src->regs[i]);
