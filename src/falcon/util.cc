@@ -291,6 +291,10 @@ std::string Coerce::str(const int& v) {
   return StringPrintf("%d", v);
 }
 
+std::string Coerce::str(const unsigned int& v) {
+	return StringPrintf("%u", v);
+}
+
 std::string Coerce::str(const short & v) {
   return StringPrintf("%d", v);
 }

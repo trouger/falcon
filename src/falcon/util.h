@@ -122,20 +122,25 @@ struct TimerBlock {
 };
 
 struct Coerce {
-  static std::string str(const size_t& v) {
-    return str((int)v);
-  }
 
-  static std::string str(const ssize_t& v) {
-	  return str((int)v);
-  }
 
   static std::string str(const long& v) {
     return StringPrintf("%ld", v);
   }
 
+#ifdef MS_WIN64
+  static std::string str(const __int64& v) {
+	  return StringPrintf("%lld", v);
+  }
+
+  static std::string str(const unsigned __int64& v) {
+	  return StringPrintf("%llu", v);
+  }
+#endif
+
   static std::string str(const short & v);
   static std::string str(const int& v);
+  static std::string str(const unsigned int& v);
   static std::string str(const double& v);
   static std::string str(const std::string& v);
 
