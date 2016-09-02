@@ -180,7 +180,7 @@ public:
     return w.str();
   }
 
-  RegisterFrame(RegisterCode* func, PyObject* obj, const ObjVector& args, const ObjVector& kw);
+  RegisterFrame(RegisterCode* func, PyObject* obj, const ObjVector& args, const ObjVector& kw, PyObject* globals = NULL, PyObject* locals = NULL);
   ~RegisterFrame();
 };
 
@@ -210,7 +210,7 @@ public:
   PyObject* eval_python(PyObject* func, PyObject* args, PyObject* kw);
 
   RegisterFrame* frame_from_pyframe(PyFrameObject*);
-  RegisterFrame* frame_from_pyfunc(PyObject* func, PyObject* args, PyObject* kw);
+  RegisterFrame* frame_from_pyfunc(PyObject* func, PyObject* args, PyObject* kw, PyObject* globals = NULL, PyObject* locals = NULL);
   RegisterFrame* frame_from_codeobj(PyObject* code);
 
   Compiler *compiler;

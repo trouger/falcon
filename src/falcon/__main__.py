@@ -21,9 +21,7 @@ def main():
   with open(script, 'rb') as fp:
       code = compile(fp.read(), script, 'exec')
   
-  m = imp.new_module("__main__")
-  d = m.__dict__ 
-  d['__builtins__'] = __builtins__
+  d = sys.modules['__main__'].__dict__
   d['__file__'] = script 
   e = falcon.Evaluator()
   e.eval_python_module(code, d)

@@ -90,16 +90,16 @@ struct PyObjHelper {
   }
 };
 
-RegisterFrame::RegisterFrame(RegisterCode* rcode, PyObject* obj, const ObjVector& args, const ObjVector& kw) :
+RegisterFrame::RegisterFrame(RegisterCode* rcode, PyObject* obj, const ObjVector& args, const ObjVector& kw, PyObject* globals, PyObject* locals) :
     code(rcode) {
   instructions_ = code->instructions.data();
 
   if (rcode->function) {
-    globals_ = PyFunction_GetGlobals(rcode->function);
-    locals_ = NULL;
+    globals_ = globals ? globals : PyFunction_GetGlobals(rcode->function);
+    locals_ = locals ? locals : NULL;
   } else {
-    globals_ = PyEval_GetGlobals();
-    locals_ = PyEval_GetGlobals();
+    globals_ = globals ? globals : PyEval_GetGlobals();
+    locals_ = locals ? locals : PyEval_GetGlobals();
   }
 
   Reg_Assert(kw.empty(), "Keyword args not supported.");
@@ -295,7 +295,7 @@ PyObject* Evaluator::eval_frame_to_pyobj(RegisterFrame* frame) {
 }
 
 PyObject* Evaluator::eval_python_module(PyObject* code, PyObject* module_dict) {
-  RegisterFrame* frame = frame_from_pyfunc(code, PyTuple_New(0), PyDict_New());
+  RegisterFrame* frame = frame_from_pyfunc(code, PyTuple_New(0), PyDict_New(), module_dict, module_dict);
   if (frame == NULL) {
     Log_Error("Couldn't compile module, calling CPython.");
     return PyEval_EvalCode((PyCodeObject*) code, module_dict, module_dict);
@@ -328,7 +328,7 @@ RegisterFrame* Evaluator::frame_from_pyframe(PyFrameObject* frame) {
   return f;
 }
 
-RegisterFrame* Evaluator::frame_from_pyfunc(PyObject* obj, PyObject* args, PyObject* kw) {
+RegisterFrame* Evaluator::frame_from_pyfunc(PyObject* obj, PyObject* args, PyObject* kw, PyObject* globals, PyObject* locals) {
   if (args == NULL || !PyTuple_Check(args)) {
     throw RException(PyExc_TypeError, "Expected function argument tuple, got: %s", obj_to_str(PyObject_Type(args)));
   }
@@ -357,7 +357,7 @@ RegisterFrame* Evaluator::frame_from_pyfunc(PyObject* obj, PyObject* args, PyObj
     // and use default otherwise
     // kw_args.push_back()
   }
-  return new RegisterFrame(regcode, obj, v_args, kw_args);
+  return new RegisterFrame(regcode, obj, v_args, kw_args, globals, locals);
 }
 
 RegisterFrame* Evaluator::frame_from_codeobj(PyObject* code) {
