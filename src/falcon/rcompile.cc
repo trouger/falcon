@@ -95,7 +95,7 @@ struct RCompilerUtil {
         op->label = 0;
       }
     } else {
-      Reg_AssertLe(src->regs.size(), 4u);
+      Reg_AssertLe(src->regs.size(), (size_t)4);
       RegOp<0>* op = (RegOp<0>*) dst;
       for (size_t i = 0; i < src->regs.size(); ++i) {
 //        op->reg.set(i, src->regs[i]);

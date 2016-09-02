@@ -2,3 +2,5 @@
 /falcon.VC.VC.opendb
 /.vs
 /Debug
+/Release
+/x64

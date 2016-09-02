@@ -126,6 +126,10 @@ struct Coerce {
     return str((int)v);
   }
 
+  static std::string str(const ssize_t& v) {
+	  return str((int)v);
+  }
+
   static std::string str(const long& v) {
     return StringPrintf("%ld", v);
   }
