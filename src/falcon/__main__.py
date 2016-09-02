@@ -11,6 +11,11 @@ def main():
 
   script = sys.argv[1]
   sys.argv = sys.argv[1:]
+
+  # this is a hack to cooperate with python benchmark 
+  if script == '-c':
+  	exec sys.argv[1]
+  	return
   
   sys.path.insert(0, os.path.dirname(script))
   with open(script, 'rb') as fp:
