@@ -21,7 +21,9 @@ static const inline char* obj_to_str(PyObject* o) {
     return PyString_AsString(o);
   }
 
-  PyObject* obj_repr = PyObject_Repr(o);
+  static PyObject *obj_repr = NULL;
+  Py_XDECREF(obj_repr);
+  obj_repr = PyObject_Repr(o);
   if (obj_repr == NULL) {
     return "<INVALID __repr__>";
   }
