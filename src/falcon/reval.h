@@ -198,11 +198,14 @@ private:
   int32_t total_count_;
   int64_t last_clock_;
 
+  StringWriter disasm_writer;
+
 public:
   Evaluator();
   ~Evaluator();
   void dump_status();
 
+  template<bool DISASM = false>
   Register eval(RegisterFrame* rf);
 
   PyObject* eval_frame_to_pyobj(RegisterFrame* rf);
@@ -212,6 +215,11 @@ public:
   RegisterFrame* frame_from_pyframe(PyFrameObject*);
   RegisterFrame* frame_from_pyfunc(PyObject* func, PyObject* args, PyObject* kw, PyObject* globals = NULL, PyObject* locals = NULL);
   RegisterFrame* frame_from_codeobj(PyObject* code);
+
+  PyObject* disassemble(PyObject* func);
+  Writer& get_disasm_writer() {
+	  return disasm_writer;
+  }
 
   Compiler *compiler;
 };

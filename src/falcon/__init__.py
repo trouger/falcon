@@ -22,3 +22,9 @@ def wrap(f):
   return wrapper
 
     
+def dis(f):
+  '''Disassemble function or code object to register-based instructions.
+  '''
+  s = evaluator.disassemble(f)
+  print s
+  return s

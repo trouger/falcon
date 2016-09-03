@@ -117,6 +117,8 @@ RegisterFrame::RegisterFrame(RegisterCode* rcode, PyObject* obj, const ObjVector
   if (rcode->num_cells > 0) {
 #if ! STACK_ALLOC_REGISTERS
     freevars = new PyObject*[rcode->num_cells];
+#else
+    assert(rcode->num_cells <= 8);
 #endif
     int i;
     for (i = 0; i < rcode->num_cellvars; ++i) {
@@ -366,6 +368,37 @@ RegisterFrame* Evaluator::frame_from_codeobj(PyObject* code) {
   return new RegisterFrame(regcode, code, args, kw);
 }
 
+PyObject* Evaluator::disassemble(PyObject* func) {
+	if (PyMethod_Check(func))
+		func = PyMethod_GET_FUNCTION(func);
+
+	PyObject* stack_code = NULL;
+	if (PyFunction_Check(func)) {
+		stack_code = PyFunction_GET_CODE(func);
+	}
+	else if (PyCode_Check(func)) {
+		stack_code = func;
+	}
+	else
+		throw RException(PyExc_TypeError, "Expected code or function, got %s", obj_to_str(func));
+
+	if (stack_code == NULL)
+		throw RException(PyExc_ValueError, "No code for function %s", obj_to_str(func));
+
+	auto frame = frame_from_codeobj(stack_code);
+	try {
+		disasm_writer = StringWriter();
+		eval<true>(frame);
+		delete frame;
+		return PyString_FromString(disasm_writer.str().c_str());
+	}
+	catch (RException) {
+		delete frame;
+		throw;
+	}
+
+}
+
 void Evaluator::dump_status() {
   Log_Info("Evaluator status:");
   Log_Info("%d operations executed.", total_count_);
@@ -394,34 +427,54 @@ static f_inline void log_operation(RegisterFrame* frame, const OpType* op, Regis
   EVAL_LOG("%5d %s %s", frame->offset(pc), frame->str().c_str(), op->str(registers).c_str());
 }
 
+#define WRITEOP_DISASM() do {						\
+	auto& writer = eval->get_disasm_writer();		\
+	writer.write(op.str());							\
+	writer.printf("\n");							\
+} while (0)
+
 template<class OpType, class SubType>
 struct RegOpImpl {
+  template<bool DISASM>
   static f_inline const char* eval(Evaluator* eval, RegisterFrame* frame, const char* pc, Register* registers) {
     OpType& op = *((OpType*) pc);
-    log_operation(frame, &op, registers, pc);
-    pc += op.size();
-    SubType::_eval(eval, frame, op, registers);
+	log_operation(frame, &op, registers, pc);
+	pc += op.size();
+	if (!DISASM)
+		SubType::_eval(eval, frame, op, registers);
+	else
+		WRITEOP_DISASM();
     return pc;
   }
 };
 
 template<class SubType>
 struct VarArgsOpImpl {
+  template<bool DISASM>
   static f_inline const char* eval(Evaluator* eval, RegisterFrame* frame, const char* pc, Register* registers) {
-    VarRegOp *op = (VarRegOp*) pc;
-    log_operation(frame, op, registers, pc);
-    pc += op->size();
-    SubType::_eval(eval, frame, op, registers);
+    VarRegOp& op = *(VarRegOp*) pc;
+    log_operation(frame, &op, registers, pc);
+    pc += op.size();
+	if (!DISASM)
+		SubType::_eval(eval, frame, &op, registers);
+	else
+		WRITEOP_DISASM();
     return pc;
   }
 };
 
 template<class OpType, class SubType>
 struct BranchOpImpl {
+  template<bool DISASM>
   static f_inline const char* eval(Evaluator* eval, RegisterFrame* frame, const char* pc, Register* registers) {
     OpType& op = *((OpType*) pc);
     log_operation(frame, &op, registers, pc);
-    SubType::_eval(eval, frame, op, &pc, registers);
+	if (!DISASM)
+		SubType::_eval(eval, frame, op, &pc, registers);
+	else {
+		pc += op.size();
+		WRITEOP_DISASM();
+	}
     return pc;
   }
 };
@@ -1442,12 +1495,19 @@ struct BreakLoop: public BranchOpImpl<BranchOp<0>, BreakLoop> {
 // can't use the exception mechanism to jump to our exit point.  Instead, we return a value
 // here and jump to the exit of our frame.
 struct ReturnValue {
+  template<bool DISASM>
   static f_inline Register* eval(Evaluator* eval, RegisterFrame* frame, const char* pc, Register* registers) {
     RegOp<1>& op = *((RegOp<1>*) pc);
     log_operation(frame, (RegOp<1>*)pc, registers, pc);
-    Register& r = registers[op.reg[0]];
-    r.incref();
-    return &r;
+	if (!DISASM) {
+		Register& r = registers[op.reg[0]];
+		r.incref();
+		return &r;
+	}
+	else {
+		WRITEOP_DISASM();
+		return NULL;
+	}
   }
 };
 
@@ -1663,6 +1723,7 @@ struct Slice: public RegOpImpl<RegOp<4>, Slice> {
 
 template<int Opcode>
 struct BadOp {
+  template<bool DISASM>
   static n_inline void eval(Evaluator *eval, RegisterFrame* frame, Register* registers) {
     const char* name = OpUtil::name(Opcode);
     throw RException(PyExc_SystemError, "Bad opcode %s", name);
@@ -1823,7 +1884,7 @@ struct RaiseVarArgs: public RegOpImpl<RegOp<3>, RaiseVarArgs> {
 #endif
 
 #define _DEFINE_OP(opname, impl)\
-      pc = impl::eval(this, frame, pc, registers);\
+      pc = impl::eval<DISASM>(this, frame, pc, registers);\
 
 #define DEFINE_OP(opname, impl)\
     START_OP(opname)\
@@ -1832,7 +1893,7 @@ struct RaiseVarArgs: public RegOpImpl<RegOp<3>, RaiseVarArgs> {
 
 #define BAD_OP(opname)\
     START_OP(opname)\
-     BadOp<opname>::eval(this, frame, registers);\
+      BadOp<opname>::eval<DISASM>(this, frame, registers);\
     END_OP(opname)
 
 #define BINARY_OP3(opname, objfn, intfn, can_overflow)\
@@ -1850,6 +1911,7 @@ struct RaiseVarArgs: public RegOpImpl<RegOp<3>, RaiseVarArgs> {
     _DEFINE_OP(opname, UnaryOp<CONCAT(opname, objfn)>)\
     END_OP(opname)
 
+template<bool DISASM>
 Register Evaluator::eval(RegisterFrame* f) {
   register RegisterFrame* frame = f;
 #ifndef _MSC_VER
@@ -2031,9 +2093,13 @@ Register Evaluator::eval(RegisterFrame* f) {
   START_DISPATCH
 
   START_OP(RETURN_VALUE)
-  result = ReturnValue::eval(this, frame, pc, registers);
+  result = ReturnValue::eval<DISASM>(this, frame, pc, registers);
+  if (DISASM) {
+	  assert(result == NULL);
+	  result = &registers[0];
+  }
   goto done;\
-END_OP(RETURN_VALUE)
+  END_OP(RETURN_VALUE)
 
   START_OP(STOP_CODE)
   EVAL_LOG("Jump to invalid opcode.");
