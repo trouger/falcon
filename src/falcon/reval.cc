@@ -27,8 +27,7 @@ static bool logging_enabled() {
 #define STORE_REG(regnum, val)\
     decltype(val) v__ = val;\
     Register& r__ = registers[regnum];\
-    r__.decref();\
-    r__.store(v__);
+    r__.store<true>(v__);
 
 static f_inline PyObject* load_obj(Register* registers, int regnum) {
   PyObject* o = registers[regnum].as_obj();
@@ -439,7 +438,7 @@ struct RegOpImpl {
   template<bool DISASM>
   static f_inline const char* eval(Evaluator* eval, RegisterFrame* frame, const char* pc, Register* registers) {
     OpType& op = *((OpType*) pc);
-	log_operation(frame, &op, registers, pc);
+	if (!DISASM) log_operation(frame, &op, registers, pc);
 	pc += op.size();
 	if (!DISASM)
 		SubType::_eval(eval, frame, op, registers);
@@ -454,7 +453,7 @@ struct VarArgsOpImpl {
   template<bool DISASM>
   static f_inline const char* eval(Evaluator* eval, RegisterFrame* frame, const char* pc, Register* registers) {
     VarRegOp& op = *(VarRegOp*) pc;
-    log_operation(frame, &op, registers, pc);
+	if (!DISASM) log_operation(frame, &op, registers, pc);
     pc += op.size();
 	if (!DISASM)
 		SubType::_eval(eval, frame, &op, registers);
@@ -469,7 +468,7 @@ struct BranchOpImpl {
   template<bool DISASM>
   static f_inline const char* eval(Evaluator* eval, RegisterFrame* frame, const char* pc, Register* registers) {
     OpType& op = *((OpType*) pc);
-    log_operation(frame, &op, registers, pc);
+	if (!DISASM) log_operation(frame, &op, registers, pc);
 	if (!DISASM)
 		SubType::_eval(eval, frame, op, &pc, registers);
 	else {
@@ -623,8 +622,7 @@ struct BinaryModulo: public RegOpImpl<RegOp<3>, BinaryModulo> {
       // args can be negative
       if (x >= 0 && y >= 0) {
         Register& dst = registers[op.reg[2]];
-        dst.decref();
-        dst.store(x % y);
+        dst.store<true>(x % y);
         return;
       }
     }
@@ -1014,8 +1012,7 @@ struct LoadFast: public RegOpImpl<RegOp<2>, LoadFast> {
     Register& a = registers[op.reg[0]];
     Register& b = registers[op.reg[1]];
     a.incref();
-    b.decref();
-    b.store(a);
+    b.store<true>(a);
   }
 };
 typedef LoadFast StoreFast;
@@ -1499,7 +1496,7 @@ struct ReturnValue {
   template<bool DISASM>
   static f_inline Register* eval(Evaluator* eval, RegisterFrame* frame, const char* pc, Register* registers) {
     RegOp<1>& op = *((RegOp<1>*) pc);
-    log_operation(frame, (RegOp<1>*)pc, registers, pc);
+	if (!DISASM) log_operation(frame, (RegOp<1>*)pc, registers, pc);
 	if (!DISASM) {
 		Register& r = registers[op.reg[0]];
 		r.incref();

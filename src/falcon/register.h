@@ -95,26 +95,48 @@ struct Register {
     }
   }
 
+  template<bool DECREF_OLD = false>
   f_inline void store(Register& r) {
-    objval = r.objval;
+      if (DECREF_OLD && get_type() == ObjType) {
+          auto old = objval;
+          objval = r.objval;
+          Py_XDECREF(old);
+      } else 
+          objval = r.objval;
   }
 
+  template<bool DECREF_OLD = false>
   f_inline void store(int v) {
-    store((long) v);
+    store<DECREF_OLD>((long) v);
   }
 
+  template<bool DECREF_OLD = false>
   f_inline void store(long v) {
 //    Log_Info("store: %p : %d", this, v);
-    i_value = v << 1;
-    i_value |= IntType;
+      if (DECREF_OLD && get_type() == ObjType) {
+          auto old = objval;
+          i_value = v << 1;
+          i_value |= IntType;
+          Py_XDECREF(old);
+      }
+      else {
+          i_value = v << 1;
+          i_value |= IntType;
+      }
   }
 
+  template<bool DECREF_OLD = false>
   f_inline void store(PyObject* obj) {
     if (obj == NULL || !PyInt_CheckExact(obj)) {
-      // Type flag is implicitly set to zero as a result of pointer alignment.
-      objval = obj;
+        if (DECREF_OLD) {
+            auto old = objval;
+            objval = obj;
+            Py_XDECREF(old);
+        } else 
+            // Type flag is implicitly set to zero as a result of pointer alignment.
+            objval = obj;
     } else {
-      store(PyInt_AS_LONG(obj) );
+      store<DECREF_OLD>(PyInt_AS_LONG(obj) );
       Py_DECREF(obj);
       //Log_Info("Register store object %d %d", as_int(), obj->ob_refcnt);
     }
@@ -163,20 +185,45 @@ struct Register {
   f_inline void reset() {
     v = (PyObject*) NULL;
   }
+
+  template<bool DECREF_OLD = false>
   f_inline void store(PyObject* obj) {
-    v = obj;
+      if (DECREF_OLD) {
+          auto old = v;
+          v = obj;
+          Py_XDECREF(old);
+      } else {
+          v = obj;
+      }    
   }
 
+  template<bool DECREF_OLD = false>
   f_inline void store(Register& r) {
-    v = r.v;
+      if (DECREF_OLD) {
+          auto old = v;
+          v = r.v;
+          Py_XDECREF(old);
+      }
+      else {
+          v = r.v;
+      }
   }
 
+  template<bool DECREF_OLD = false>
   f_inline void store(int ival) {
-    store((long)ival);
+    store<DECREF_OLD>((long)ival);
   }
 
+  template<bool DECREF_OLD = false>
   f_inline void store(long ival) {
-    v = PyInt_FromLong(ival);
+    if (DECREF_OLD) {
+        auto old = v;
+        v = PyInt_FromLong(ival);
+        Py_XDECREF(old);
+    }
+    else {
+        v = PyInt_FromLong(ival);
+    }
   }
 };
 #endif
