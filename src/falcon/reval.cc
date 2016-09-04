@@ -138,6 +138,7 @@ RegisterFrame::RegisterFrame(RegisterCode* rcode, PyObject* obj, const ObjVector
       }
     }
 
+	assert(rcode->function);
     PyObject* closure = ((PyFunctionObject*) rcode->function)->func_closure;
     if (closure) {
       for (int i = rcode->num_cellvars; i < rcode->num_cells; ++i) {

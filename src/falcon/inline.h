@@ -10,13 +10,24 @@
 
 #elif defined(FALCON_DEBUG)
 
+#if defined(_MSC_VER)
+
+#define f_inline __declspec(noinline)
+#define n_inline __declspec(noinline)
+
+#else
+
 #define f_inline __attribute__((noinline))
 #define n_inline __attribute__((noinline))
 
-#elif defined(_MSC_VER)
+#endif
+
+#else
+
+#if defined(_MSC_VER)
 
 #define f_inline __forceinline
-#define n_inline
+#define n_inline __declspec(noinline)
 
 #else
 
@@ -24,6 +35,8 @@
 //#define f_inline __attribute__((noinline))
 #define f_inline __attribute__((always_inline))
 #define n_inline __attribute__((noinline))
+
+#endif
 
 #endif
 
