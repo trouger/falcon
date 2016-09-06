@@ -90,15 +90,18 @@ struct PyObjHelper {
 };
 
 RegisterFrame::RegisterFrame(RegisterCode* rcode, PyObject* obj, const ObjVector& args, const ObjVector& kw, PyObject* globals, PyObject* locals) :
-    code(rcode) {
+    code(rcode), pyframe_(NULL) {
   instructions_ = code->instructions.data();
 
   if (rcode->function) {
     globals_ = globals ? globals : PyFunction_GetGlobals(rcode->function);
-    locals_ = locals ? locals : NULL;
+    Py_INCREF(globals_);
+    locals_ = locals ? (Py_INCREF(locals), locals) : NULL;
   } else {
     globals_ = globals ? globals : PyEval_GetGlobals();
+    Py_INCREF(globals_);
     locals_ = locals ? locals : PyEval_GetGlobals();
+    Py_INCREF(locals_);
   }
 
   Reg_Assert(kw.empty(), "Keyword args not supported.");
@@ -212,6 +215,39 @@ RegisterFrame::RegisterFrame(RegisterCode* rcode, PyObject* obj, const ObjVector
 
 }
 
+RegisterFrame::RegisterFrame(RegisterCode* rcode, PyFrameObject* f)
+        :code(rcode), pyframe_((PyObject*)f) {
+    Py_INCREF(f);
+    instructions_ = code->instructions.data();
+    builtins_ = f->f_builtins;
+    names_ = code->names();
+    consts_ = code->consts();
+
+    int num_consts = PyTuple_GET_SIZE(consts_);
+    for (int i = 0; i < num_consts; ++i) {
+        PyObject* v = PyTuple_GET_ITEM(consts_, i);
+        Py_INCREF(v);
+        registers[i].store(v);
+    }
+
+    globals_ = f->f_globals;
+    locals_ = f->f_locals;
+    auto localsplus = f->f_localsplus;
+    int argcount = ((PyCodeObject*)code->code_)->co_argcount;
+    int flags = ((PyCodeObject*)code->code_)->co_flags;
+    if (flags & CO_VARARGS) argcount++;
+    if (flags & CO_VARKEYWORDS) argcount++;
+    for (int i = 0; i < argcount; ++i) {
+        auto value = localsplus[i];
+        Py_INCREF(value);
+        registers[num_consts + i].store(value);
+    }
+
+    for (int i = num_consts + argcount; i < code->num_registers; i++) {
+        registers[i].reset();
+    }
+}
+
 RegisterFrame::~RegisterFrame() {
   const int num_registers = code->num_registers;
   for (register int i = 0; i < num_registers; ++i) {
@@ -221,6 +257,8 @@ RegisterFrame::~RegisterFrame() {
   for (register int i = 0; i < this->code->num_cells; ++i) {
     Py_XDECREF(freevars[i]);
   }
+
+  Py_XDECREF(pyframe_);
 
 #if ! STACK_ALLOC_REGISTERS
   delete[] registers;
@@ -246,18 +284,46 @@ Evaluator::Evaluator() {
 }
 
 Evaluator::~Evaluator() {
-  delete compiler;
+    if (global_evaluator == this) stop();
+    delete compiler;
 }
 
-void RegisterFrame::fill_locals(PyObject* ldict) {
-  PyObject* varnames = code->varnames();
-  for (int i = 0; i < PyTuple_GET_SIZE(varnames) ; ++i) {
-    PyObject* name = PyTuple_GET_ITEM(varnames, i) ;
-    PyObject* value = PyDict_GetItem(ldict, name);
-    registers[num_consts() + i].store(value);
-  }
-  Py_INCREF(ldict);
-  locals_ = ldict;
+Evaluator* Evaluator::global_evaluator = NULL;
+
+void Evaluator::start() {
+    if (global_evaluator)
+        throw RException(PyExc_RuntimeError, "An evaluator has previouly been started.");
+    global_evaluator = this;
+    PyThreadState_Get()->interp->eval_frame = &eval_frame_delegate;
+}
+
+void Evaluator::stop() {
+    if (global_evaluator != this)
+        throw RException(PyExc_RuntimeError, "This evaluator is not started.");
+    global_evaluator = NULL;
+    PyThreadState_Get()->interp->eval_frame = &PyEval_EvalFrameDefault;
+}
+
+PyObject* Evaluator::eval_frame_delegate(PyFrameObject* f, int throwflag) {
+    assert(global_evaluator != NULL);
+    try {
+        return global_evaluator->EvalFrame(f, throwflag);
+    }
+    catch (RException) {
+        // python error has been set inside Evaluator::eval
+        return NULL;
+    }
+}
+
+PyObject* Evaluator::EvalFrame(PyFrameObject* f, int throwflag) {
+    auto rcode = compiler->compile((PyObject*)f->f_code);
+    if (rcode == NULL) {
+        return NULL;
+    }
+    auto rframe = new RegisterFrame(rcode, f);
+    std::unique_ptr<RegisterFrame> auto_delete(rframe);
+    // TODO rframe should be reused by rcode object.
+    return eval_frame_to_pyobj(rframe);
 }
 
 PyObject* RegisterFrame::locals() {
@@ -278,26 +344,18 @@ PyObject* RegisterFrame::locals() {
 }
 
 PyObject* Evaluator::eval_frame_to_pyobj(RegisterFrame* frame) {
-  try {
     Register result = eval(frame);
     //bool needs_incref = !result.is_obj();
     PyObject* result_obj = result.as_obj();
     //if (needs_incref) Py_INCREF(result_obj);
 
     EVAL_LOG("Returning to python: %s", obj_to_str(result_obj));
-
-    // only delete after incref since deleting the frame decreases reference counts
-    delete frame;
     return result_obj;
-
-  } catch (RException) {
-    delete frame;
-    return NULL;
-  }
 }
 
 PyObject* Evaluator::eval_python_module(PyObject* code, PyObject* module_dict) {
-  RegisterFrame* frame = frame_from_pyfunc(code, PyTuple_New(0), PyDict_New(), module_dict, module_dict);
+  auto frame = frame_from_pyfunc(code, PyTuple_New(0), PyDict_New(), module_dict, module_dict);
+  std::unique_ptr<RegisterFrame> auto_delete(frame);
   if (frame == NULL) {
     Log_Error("Couldn't compile module, calling CPython.");
     return PyEval_EvalCode((PyCodeObject*) code, module_dict, module_dict);
@@ -307,27 +365,14 @@ PyObject* Evaluator::eval_python_module(PyObject* code, PyObject* module_dict) {
 }
 
 PyObject* Evaluator::eval_python(PyObject* func, PyObject* args, PyObject* kw) {
-  RegisterFrame* frame = frame_from_pyfunc(func, args, kw);
+  auto frame = frame_from_pyfunc(func, args, kw);
+  std::unique_ptr<RegisterFrame> auto_delete(frame);
   if (frame == NULL) {
     EVAL_LOG("Couldn't compile function, calling CPython.");
     return PyObject_Call(func, args, kw);
   } else {
     return eval_frame_to_pyobj(frame);
   }
-}
-
-RegisterFrame* Evaluator::frame_from_pyframe(PyFrameObject* frame) {
-  RegisterCode* regcode = compiler->compile((PyObject*) frame->f_code);
-  if (regcode == NULL) {
-    return NULL;
-  }
-
-  ObjVector v_args;
-  ObjVector kw_args;
-  RegisterFrame* f = new RegisterFrame(regcode, (PyObject*) frame->f_code, v_args, kw_args);
-  PyFrame_FastToLocals(frame);
-  f->fill_locals(frame->f_locals);
-  return f;
 }
 
 RegisterFrame* Evaluator::frame_from_pyfunc(PyObject* obj, PyObject* args, PyObject* kw, PyObject* globals, PyObject* locals) {
@@ -1332,7 +1377,7 @@ struct MakeClosure: public VarArgsOpImpl<MakeClosure> {
 };
 
 template<bool HasVarArgs, bool HasKwDict>
-struct CallFunction: public VarArgsOpImpl<CallFunction<HasVarArgs, HasKwDict> > {
+struct CallFunction_Old: public VarArgsOpImpl<CallFunction_Old<HasVarArgs, HasKwDict> > {
   static f_inline void _eval(Evaluator* eval, RegisterFrame* frame, VarRegOp *op, Register* registers) {
     int na = op->arg & 0xff;
     int nk = (op->arg >> 8) & 0xff;
@@ -1417,6 +1462,56 @@ struct CallFunction: public VarArgsOpImpl<CallFunction<HasVarArgs, HasKwDict> > 
       STORE_REG(dst, eval->eval(&f));
     }
   }
+};
+
+template<bool HasVarArgs, bool HasKwDict>
+struct CallFunction : public VarArgsOpImpl<CallFunction<HasVarArgs, HasKwDict> > {
+    static f_inline void _eval(Evaluator* eval, RegisterFrame* frame, VarRegOp *op, Register* registers) {
+        int na = op->arg & 0xff;
+        int nk = (op->arg >> 8) & 0xff;
+        int n = nk * 2 + na;
+
+        if (HasVarArgs) n++;
+        if (HasKwDict) n++;
+
+        int dst = op->reg[n + 1];
+
+        PyObject* fn = LOAD_OBJ(op->reg[0]);
+
+        Reg_AssertEq(n + 2, op->num_registers);
+
+        PyObject *stack[1024];
+        PyObject **stack_pointer = stack;
+        Py_INCREF(fn);
+        *stack_pointer++ = fn;
+        for (int i = 1; i <= na; i++) {
+            auto a = LOAD_OBJ(op->reg[i]);
+            Py_INCREF(a);
+            *stack_pointer++ = a;
+        }
+        int reg_index = na;
+        for (int i = 0; i < nk; i++) {
+            auto key = LOAD_OBJ(op->reg[++reg_index]);
+            auto val = LOAD_OBJ(op->reg[++reg_index]);
+            Py_INCREF(key);
+            Py_INCREF(val);
+            *stack_pointer++ = key;
+            *stack_pointer++ = val;
+        }
+        if (HasVarArgs) {
+            auto varargs = LOAD_OBJ(op->reg[++reg_index]);
+            Py_INCREF(varargs);
+            *stack_pointer++ = varargs;
+        }
+        if (HasKwDict) {
+            auto kwdict = LOAD_OBJ(op->reg[++reg_index]);
+            Py_INCREF(kwdict);
+            *stack_pointer++ = kwdict;
+        }
+        *stack_pointer = (PyObject *)op->arg;
+        auto result = PyEval_EvalFrameDefault((PyFrameObject *)stack_pointer, op->code);
+        STORE_REG(dst, result);
+    }
 };
 
 typedef CallFunction<false, false> CallFunctionSimple;

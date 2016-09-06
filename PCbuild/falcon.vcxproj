@@ -98,6 +98,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>FALCON_DEBUG;_WINDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -197,7 +198,13 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)swigwin-3.0.10\swig.exe -c++ -python %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename)_wrap.cxx;%(Filename).py;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename)_wrap.cxx;%(Filename).py;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\falcon\falcon_core.py" />
+    <None Include="..\src\falcon\__init__.py" />
+    <None Include="..\src\falcon\__main__.py" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -12,6 +12,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="Python Files">
+      <UniqueIdentifier>{ec2f71b3-b01b-48b2-b056-46c55155158e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\falcon\rlist.cc">
@@ -111,5 +114,16 @@
     <CustomBuild Include="..\src\falcon\rmodule.i">
       <Filter>Source Files</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\falcon\falcon_core.py">
+      <Filter>Generated Files</Filter>
+    </None>
+    <None Include="..\src\falcon\__init__.py">
+      <Filter>Python Files</Filter>
+    </None>
+    <None Include="..\src\falcon\__main__.py">
+      <Filter>Python Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

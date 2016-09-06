@@ -2,6 +2,10 @@
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommand>k:\efficient-cpython\PCbuild\python_d.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>mixed_debug\mixed_debug.py</LocalDebuggerCommandArguments>
+    <LocalDebuggerEnvironment>PYTHONPATH=..\src;Debug
+$(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>

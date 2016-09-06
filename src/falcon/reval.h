@@ -124,6 +124,7 @@ public:
 #endif
   const RegisterCode* code;
 
+  PyObject* pyframe_;
   PyObject* builtins_;
   PyObject* globals_;
   PyObject* locals_;
@@ -157,8 +158,6 @@ public:
     return names_;
   }
 
-  void fill_locals(PyObject* ldict);
-
   PyObject* locals();
 
   f_inline int offset(const char* pc) const {
@@ -181,6 +180,7 @@ public:
   }
 
   RegisterFrame(RegisterCode* func, PyObject* obj, const ObjVector& args, const ObjVector& kw, PyObject* globals = NULL, PyObject* locals = NULL);
+  RegisterFrame(RegisterCode* rcode, PyFrameObject* f);
   ~RegisterFrame();
 };
 
@@ -200,6 +200,9 @@ private:
 
   StringWriter disasm_writer;
 
+  static Evaluator* global_evaluator;
+  static PyObject* eval_frame_delegate(PyFrameObject* f, int throwflag);
+
 public:
   Evaluator();
   ~Evaluator();
@@ -212,7 +215,6 @@ public:
   PyObject* eval_python_module(PyObject* code, PyObject* module_dict);
   PyObject* eval_python(PyObject* func, PyObject* args, PyObject* kw);
 
-  RegisterFrame* frame_from_pyframe(PyFrameObject*);
   RegisterFrame* frame_from_pyfunc(PyObject* func, PyObject* args, PyObject* kw, PyObject* globals = NULL, PyObject* locals = NULL);
   RegisterFrame* frame_from_codeobj(PyObject* code);
 
@@ -220,6 +222,10 @@ public:
   Writer& get_disasm_writer() {
 	  return disasm_writer;
   }
+
+  void start();
+  void stop();
+  PyObject* EvalFrame(PyFrameObject* f, int throwflag);
 
   Compiler *compiler;
 };

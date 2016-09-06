@@ -6,8 +6,7 @@
     <ProjectGuid>25851241-d47d-4764-889e-859c54f89838</ProjectGuid>
     <ProjectHome>.</ProjectHome>
     <StartupFile>mixed_debug.py</StartupFile>
-    <SearchPath>
-    </SearchPath>
+    <SearchPath>.</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>mixed_debug</Name>
@@ -19,9 +18,9 @@
     <InterpreterVersion>2.7</InterpreterVersion>
     <InterpreterArguments>
     </InterpreterArguments>
-    <Environment>PYTHONPATH=..\..\src;..\Debug</Environment>
-    <CommandLineArguments>
-    </CommandLineArguments>
+    <Environment>PYTHONPATH=..\..\src;..\Debug
+EVAL_LOG=1</Environment>
+    <CommandLineArguments>-n 1 --time time</CommandLineArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -35,6 +34,7 @@
     <Compile Include="mixed_debug.py" />
   </ItemGroup>
   <ItemGroup>
+    <InterpreterReference Include="{70874b25-d3f0-4b36-8584-fc5ea574175d}\2.7" />
     <InterpreterReference Include="{7c7aedfc-5aa6-4b98-82a7-f04889e0355a}\2.7" />
   </ItemGroup>
   <PropertyGroup>

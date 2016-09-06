@@ -463,7 +463,7 @@ BasicBlock* Compiler::registerize(CompilerState* state, RegisterStack *stack, in
       CompilerOp* f = bb->add_varargs_op(opcode, oparg, n + 3);
       // pop off the varargs tuple, the actual args, and the function
       stack->fill_register_array(f->regs, n + 2);
-      f->regs[n + 1] = stack->push_register(state->num_reg++);
+      f->regs[n + 2] = stack->push_register(state->num_reg++);
       Reg_AssertEq(f->arg, oparg);
       break;
     }
@@ -899,7 +899,7 @@ RegisterCode* Compiler::compile_(PyObject* func) {
 
   Log_Info(
       "COMPILED %s, %d registers, %d operations, %d stack ops.",
-      PyEval_GetFuncName(func), regcode->num_registers, state.num_ops(), num_python_ops(PyString_AsString(code->co_code), PyString_GET_SIZE(code->co_code)));
+      PyString_AsString(code->co_name), regcode->num_registers, state.num_ops(), num_python_ops(PyString_AsString(code->co_code), PyString_GET_SIZE(code->co_code)));
 
   return regcode;
 }

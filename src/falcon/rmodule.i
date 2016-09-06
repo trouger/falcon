@@ -23,4 +23,6 @@ public:
   PyObject* eval_python(PyObject* func, PyObject* args, PyObject* kw);
   PyObject* eval_python_module(PyObject* code, PyObject* module_dict);
   PyObject* disassemble(PyObject* func);
+  void start();
+  void stop();
 };
